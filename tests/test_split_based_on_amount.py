@@ -13,12 +13,10 @@ def test_split_based_on_amt_single_pair(solution: str) -> None:
     """test_split_based_on_amt_single_pair
     Verify if splitting tranactions based on amount works for a  single account_id - counterparty_id pair.
     We construct a set of 5 transactions, all belonging to the same account_id - counterparty_id pair.
-    We choose the amounts to be [1, 4, 4, 4, 4].
-    We expect the first transaction to be split of since it is smaller than  0.3 * median of all transactions.
-    0.3 * median (i.e., 4) = 1.2
-    # the first element is smaller then 1.2, the rest larger
+    We choose the amounts to be [3.99, 50.00, 3.99, 59.99, 3.99] (example from the blog).
+    We expect the amounts to be nicely split in two groups, a group with values above and below 7.98 (2 * median (i.e., 3.99) = 7.98)
     """
-    booking_amount = [1, 4, 4, 4, 4]
+    booking_amount = [3.99, 50.00, 3.99, 59.99, 3.99]
     data = {
         "date": [datetime.date(2025, 1, 1)] * 5,
         "account_id": ["acct_id"] * 5,
@@ -32,7 +30,7 @@ def test_split_based_on_amt_single_pair(solution: str) -> None:
         df = pd.DataFrame(data)
         df_res = split_based_on_amount_pandas(df)
 
-    assert df_res["sequence_id"].to_list() == [0, 1, 1, 1, 1]
+    assert df_res["sequence_id"].to_list() == [0, 1, 0, 1, 0]
 
 
 @pytest.mark.parametrize("solution", ["polars", "pandas"])
@@ -43,19 +41,16 @@ def test_split_based_on_amt_multiple_pairs(solution: str) -> None:
     We construct 2 pairs:
     pair 1:
     We construct a set of 5 transactions, all belonging to the same account_id - counterparty_id pair.
-    We choose the amounts to be [1, 4, 4, 4, 4].
-    We expect the first transaction to be split of since it is smaller than  0.3 * median of all transactions.
-    0.3 * median (i.e., 4) = 1.2
-    # the first element is smaller then 1.2, the rest larger
+    We choose the amounts to be  [3.99, 50.00, 3.99, 59.99, 3.99].
+    We expect the amounts to be nicely split in two groups, a group with values above and below 7.98 (2 * median (i.e., 3.99) = 7.98)
     pair 2:
     We construct a set of 5 transactions, all belonging to the same account_id - counterparty_id pair.
     We choose the amounts to be [10, 20, 30, 40, 50].
-    We expect all transactions in a single all all  amount  aree larger  than  0.3 * median of all transactions.
-    0.3 * median (i.e., 30) = 9
+    We expect all transactions in a single group since all  amounts  are larger  than 60, i.e., 2 * median (30) of all transactions.
     """
 
     # pair  1:
-    booking_amount_1 = [1, 4, 4, 4, 4]
+    booking_amount_1 = [3.99, 50.00, 3.99, 59.99, 3.99]
     data_1 = {
         "date": [datetime.date(2025, 1, 1)] * 5,
         "account_id": ["acct_id_1"] * 5,
@@ -63,7 +58,7 @@ def test_split_based_on_amt_multiple_pairs(solution: str) -> None:
         "booking_amount": booking_amount_1,
     }
     # pair  2:
-    booking_amount_2 = [10, 20, 30, 40, 50]
+    booking_amount_2 = [10.0, 20.0, 30.0, 40.0, 50.0]
     data_2 = {
         "date": [datetime.date(2025, 1, 1)] * 5,
         "account_id": ["acct_id_2"] * 5,
@@ -82,4 +77,4 @@ def test_split_based_on_amt_multiple_pairs(solution: str) -> None:
         df = pd.concat([df_1, df_2])
         df_res = split_based_on_amount_pandas(df)
 
-    assert df_res["sequence_id"].to_list() == [0, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+    assert df_res["sequence_id"].to_list() == [0, 1, 0, 1, 0, 0, 0, 0, 0, 0]

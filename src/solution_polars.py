@@ -8,7 +8,7 @@ def split_based_on_amount(df_transactions: pl.LazyFrame) -> pl.LazyFrame:
     # make sure sequence_ids always start at 0
     df_split_based_on_amount = df_transactions.with_columns(
         sequence_id=(
-            (pl.col("booking_amount") >= (pl.median("booking_amount") * 0.3)).rank("dense", descending=False)
+            (pl.col("booking_amount") > (pl.median("booking_amount") * 2)).rank("dense", descending=False)
         ).over("account_id", "counterparty_id")
         - 1,
     )

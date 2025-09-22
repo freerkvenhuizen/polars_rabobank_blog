@@ -1,2 +1,1 @@
-# distribute_polars_pyspark
-This repo contains example code on how to distribute polars code using PySpark.
+Examples supporting my blog post on how Rabobank is using Polars

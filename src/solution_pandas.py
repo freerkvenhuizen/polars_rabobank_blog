@@ -5,7 +5,7 @@ def split_based_on_amount(df: pd.DataFrame):
     # calculate median for each group
     df["median_amt_per_subgroup"] = df.groupby(["account_id", "counterparty_id"])["booking_amount"].transform("median")
     # asssign each transsaction to a sequence by comparing the amount to the median amount per group
-    df["sequence_id"] = (df["booking_amount"] > df["median_amt_per_subgroup"] * 0.3).astype(int)
+    df["sequence_id"] = (df["booking_amount"] > df["median_amt_per_subgroup"] * 2).astype(int)
     # make sure sequence_ids always start at 0
     df["sequence_id"] = (
         df.groupby(["account_id", "counterparty_id"])["sequence_id"].rank(method="dense", ascending=True) - 1
