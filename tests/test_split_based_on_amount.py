@@ -46,7 +46,7 @@ def test_split_based_on_amt_multiple_pairs(solution: str) -> None:
     pair 2:
     We construct a set of 5 transactions, all belonging to the same account_id - counterparty_id pair.
     We choose the amounts to be [10, 20, 30, 40, 50].
-    We expect all transactions in a single group since all  amounts  are larger  than 60, i.e., 2 * median (30) of all transactions.
+    We expect all transactions in a single group since all  amounts  are smaller  than 60, i.e., 2 * median (30) of all transactions.
     """
 
     # pair  1:
