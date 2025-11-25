@@ -7,7 +7,7 @@ author: "[Freerk Venhuizen], Senior Data Scientist @ Rabobank"
 ---
 
 ## About Rabobank
-Rabobank, one of the leading banks in the Netherlands, processes about 4 billion customer transactions every year. Various complex transaction enrichment engines are in place to enrich these transactions with additional information, such as a category (groceries, energy, insurances, etc) or a periodicity indicator (weekly, monthly, etc).  Many use cases within the bank depend on these enrichments and typically have very demanding requirements when it comes to throughput and latency. One of the use cases is the Insights feature in the Rabobank app (see image below). This feature offers customers insights in their past ánd future spending behaviour. Insights provides an overview of their fixed costs and subscriptions (past and future), e.g., their (upcoming) energy bill, rent, streaming services, etc. A fundamental building block supporting Insights is the Periodicity engine. 
+Rabobank, one of the leading banks in the Netherlands, processes about 4 billion customer transactions every year. Various complex transaction enrichment engines are in place to enrich these transactions with additional information, such as a category (groceries, energy, insurances, etc) or a periodicity indicator (weekly, monthly, etc).  Many use cases within the bank depend on these enrichments and typically have very demanding requirements when it comes to throughput and latency (typically subsecond requirements are in place). One of the use cases is the Insights feature in the Rabobank app (see image below). This feature offers customers insights in their past ánd future spending behaviour. Insights provides an overview of their fixed costs and subscriptions (past and future), e.g., their (upcoming) energy bill, rent, streaming services, etc. A fundamental building block supporting Insights is the Periodicity engine. 
 
 ![Future timeline, powered by Periodicity](images/future-timeline.png)
 
@@ -49,12 +49,34 @@ In the Nintendo example, we could split the membership fee from the individual g
 ```python
     df_split_based_on_amount = df_transactions.with_columns(
         sequence_id=(
-            (pl.col("booking_amount") > (pl.median("booking_amount") * 2)).rank("dense", descending=False)
+            (pl.col("booking_amount") > (pl.median("booking_amount") * 2))
+            .rank("dense", descending=False)) - 1,
+    )
+```
+This code performs the following steps:
+- Determine the median amount over all transactions.
+- Asssign each transaction to a sequence by comparing the amount to 2x the median amount.
+- Rank("dense") - 1  guarantees sequence_ids always start at 0 (even when all booking_amounts are above or below the threshold).
+ 
+
+If we now want to apply the same logic to all account/counterparty pairs, we can simply add `.over(‘account’, ‘counterparty’)`, telling Polars to apply the same logic to all subgroups in a very efficient manner. In reality we apply far more complex splitting logic, but the same principle holds, a single .over() clause scales the same logic to all possible subgroups. 
+
+```python
+    df_split_based_on_amount = df_transactions.with_columns(
+        sequence_id=(
+            (pl.col("booking_amount") > (pl.median("booking_amount") * 2))
+            .rank("dense", descending=False)
+        # add window function to apply the same logic over all subgroups
         ).over("account_id", "counterparty_id")
         - 1,
     )
 ```
-If we now want to apply the same logic to all account/counterparty pairs, we can simply add ‘.over(‘account’, ‘counterparty’), telling Polars to apply the same logic to all subgroups in a very efficient manner. In reality we apply far more complex splitting logic, but the same principle holds, a single .over() clause scales the same logic to all possible subgroups. 
+
+This code __now__ performs the following steps:
+- Determine the median amount __per subgroup__ (subgroups are defined by all transactions between 2 account_ids).
+- Asssign each transaction to a sequence by comparing the amount to 2x the median amount __per subgroup__.
+- Rank("dense") - 1  guarantees sequence_ids always start at 0 (even when all booking_amounts are above or below the threshold).
+
 
 ## Putting it to the test!
 To demonstrate how well Polars works for our use case I created an (extremely) simplified version of our Periodicity engine in Polars and Pandas and compared both solutions. The engine performs the following tasks on a set of input transactions:
@@ -72,6 +94,12 @@ To demonstrate how well Polars works for our use case I created an (extremely) s
     ).with_columns(monthly_consistency_score=pl.mean("monthly").over("account_id", "counterparty_id", "sequence_id"))
     return df_res
   ```
+
+This code performs the same operation for each subgroup of data (subgroups are defined by all transactions with similar booking_amount between 2 account_ids)
+- Order the transactions by date (per subgroup).
+- Determine the number of days between consecutive transactions.
+- If the amount of days between 2 transactions is between 25-35 days, consider it to be a monthly transaction.
+- Determine the fraction of monthly transactions in a sequence, we call this the 'monthly_consistency_score'.
 
 The complete code can be found on my github: https://github.com/freerkvenhuizen/polars_rabobank_blog
 
